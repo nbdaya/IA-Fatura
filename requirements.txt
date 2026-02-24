@@ -1,0 +1,10 @@
+flask
+pandas
+PyPDF2
+pdf2image
+pytesseract
+opencv-python
+pillow
+fuzzywuzzy
+python-Levenshtein
+gunicorn
