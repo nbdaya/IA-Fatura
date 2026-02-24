@@ -2,12 +2,17 @@ import os
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from werkzeug.utils import secure_filename
 from datetime import datetime
-from PyPDF2 import PdfReader
-import pytesseract
-from PIL import Image
-import cv2
-import numpy as np
-from fuzzywuzzy import process
+import re
+import pandas as pd
+
+# 🔴 OCR DESATIVADO TEMPORARIAMENTE
+# from PyPDF2 import PdfReader
+# from pdf2image import convert_from_path
+# import pytesseract
+# from PIL import Image
+# import cv2
+# import numpy as np
+# from fuzzywuzzy import process
 
 UPLOAD_FOLDER = 'static/uploads'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'pdf'}
@@ -18,68 +23,50 @@ app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.secret_key = SECRET_KEY
 
-# Simulando um "banco" de faturas em memória
+# Banco em memória
 faturas = []
 
-CAMPOS = [
-    'concessionária', 'nome', 'unidade', 'código da instalação', 'data de emissão',
-    'vencimento', 'valor total', 'consumo', 'kwh', 'ponta', 'fora ponta',
-    'demanda contratada', 'leitura atual', 'leitura anterior', 'tarifa', 'classe',
-    'medidor', 'energia reativa', 'grupo de consumo', 'número do medidor'
+CAMPOS_EXTRAIR = [
+    'CÓDIGO DA INSTALAÇÃO',
+    'NOME DA CONCESSIONÁRIA',
+    'REF:MÊS/ANO',
+    'DEMANDA',
+    'ENERGIA ATIVA HFP',
+    'ENERGIA ATIVA HP',
+    'TOTAL A PAGAR'
 ]
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+
+# 🔴 FUNÇÕES DE OCR DESATIVADAS
+"""
 def preprocess_image(path):
-    img = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
-    img = cv2.threshold(img, 150, 255, cv2.THRESH_BINARY)[1]
-    img = cv2.medianBlur(img, 3)
-    return Image.fromarray(img)
+    ...
 
 def extrair_texto_ocr(path):
-    ext = path.lower().split('.')[-1]
-    if ext == 'pdf':
-        # 1. PDF digital (texto)
-        try:
-            reader = PdfReader(path)
-            texto_pdf = ""
-            for page in reader.pages:
-                page_text = page.extract_text()
-                if page_text:
-                    texto_pdf += page_text + "\n"
-            if texto_pdf.strip():
-                return texto_pdf
-        except Exception as e:
-            print("Erro PDF digital:", e)
-        # 2. PDF escaneado (imagem)
-        try:
-            from pdf2image import convert_from_path
-            paginas = convert_from_path(path)
-            texto_total = ''
-            for pag in paginas:
-                tmp = pag.convert('L')
-                texto_total += pytesseract.image_to_string(tmp, lang='por+eng', config='--psm 6 --oem 3') + '\n'
-            return texto_total
-        except Exception as err:
-            print("Erro PDF escaneado:", err)
-            return "PDF escaneado não pôde ser processado (Poppler ausente?)."
-    else:
-        img = preprocess_image(path)
-        return pytesseract.image_to_string(img, lang='por+eng', config='--psm 6 --oem 3')
+    ...
+"""
 
 def extrair_dados_fatura(texto):
     resultado = {}
-    linhas = texto.lower().split('\n')
-    for campo in CAMPOS:
-        achou, score = process.extractOne(campo, linhas)
-        if score > 65:
-            resultado[campo.title()] = achou
-    return resultado if resultado else None
+    codigo_instalacao = re.search(r"\b\d{9}\b", texto)
+    resultado['CÓDIGO DA INSTALAÇÃO'] = codigo_instalacao.group(0) if codigo_instalacao else ""
+    resultado['NOME DA CONCESSIONÁRIA'] = "LIGHT" if "LIGHT" in texto.upper() else "NÃO IDENTIFICADO"
+    ref_mes_ano = re.search(r"\b([A-Z]{3}/\d{4})\b", texto)
+    resultado['REF:MÊS/ANO'] = ref_mes_ano.group(1) if ref_mes_ano else ""
+    resultado['DEMANDA'] = ""
+    resultado['ENERGIA ATIVA HFP'] = ""
+    resultado['ENERGIA ATIVA HP'] = ""
+    resultado['TOTAL A PAGAR'] = ""
+    return resultado
+
 
 @app.route('/')
 def splash():
     return render_template('splash.html')
+
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -88,15 +75,18 @@ def login():
         return redirect(url_for('dashboard'))
     return render_template('login.html')
 
+
 @app.route('/cadastro', methods=['GET', 'POST'])
 def cadastro():
     if request.method == 'POST':
         return redirect(url_for('login'))
     return render_template('cadastro.html')
 
+
 @app.route('/dashboard')
 def dashboard():
     return render_template('dashboard.html', faturas=faturas)
+
 
 @app.route('/upload', methods=['GET', 'POST'])
 def upload():
@@ -104,40 +94,46 @@ def upload():
         if 'arquivo' not in request.files:
             flash('Nenhum arquivo enviado', 'danger')
             return redirect(request.url)
+
         file = request.files['arquivo']
+
         if file.filename == '':
             flash('Nenhum arquivo selecionado', 'danger')
             return redirect(request.url)
+
         if file and allowed_file(file.filename):
             filename = secure_filename(file.filename)
             caminho = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             file.save(caminho)
+
+            # 🔴 OCR DESATIVADO TEMPORARIAMENTE
+            texto = "OCR DESATIVADO"
+            dados = {}
+
             fatura = {
                 'nome_arquivo': filename,
                 'caminho_arquivo': caminho,
                 'data_upload': datetime.now().strftime("%d/%m/%Y %H:%M"),
-                'texto_extraido': None,
-                'dados_fatura': None
+                'texto_extraido': texto,
+                'dados_fatura': dados
             }
+
             faturas.append(fatura)
-            flash('Upload realizado com sucesso!', 'success')
+            flash('Upload realizado!', 'success')
             return redirect(url_for('dashboard'))
+
     return render_template('upload.html')
+
 
 @app.route('/relatorio/<nome_arquivo>')
 def relatorio(nome_arquivo):
     fatura = next((f for f in faturas if f['nome_arquivo'] == nome_arquivo), None)
     if fatura:
-        if not fatura.get('texto_extraido'):
-            texto = extrair_texto_ocr(fatura['caminho_arquivo'])
-            fatura['texto_extraido'] = texto
-            fatura['dados_fatura'] = extrair_dados_fatura(texto)
-        texto = fatura['texto_extraido']
-        dados = fatura['dados_fatura']
-        return render_template('relatorio.html', fatura=fatura, texto=texto)
+        return render_template('relatorio.html', fatura=fatura, texto=fatura['texto_extraido'], dados=fatura['dados_fatura'])
     else:
         flash('Arquivo não encontrado.', 'danger')
         return redirect(url_for('dashboard'))
+
 
 @app.route('/remover/<nome_arquivo>')
 def remover(nome_arquivo):
@@ -150,10 +146,23 @@ def remover(nome_arquivo):
     flash('Arquivo removido.', 'success')
     return redirect(url_for('dashboard'))
 
+
 @app.route('/logout')
 def logout():
     session.clear()
     return redirect(url_for('splash'))
+
+
+@app.route('/dashboard_geral')
+def dashboard_geral():
+    dados_list = [f['dados_fatura'] for f in faturas if f.get('dados_fatura')]
+    df = pd.DataFrame(dados_list) if dados_list else pd.DataFrame()
+    return render_template(
+        'dashboard_geral.html',
+        tabela=df.to_html(classes='table table-bordered', index=False),
+        df_json=df.to_json(orient='records')
+    )
+
 
 if __name__ == "__main__":
     app.run(debug=True)
