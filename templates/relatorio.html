@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>Relatório da Fatura</title>
+  <style>
+    body { background: #161616; color: #FFD600; font-family: Arial, sans-serif;}
+    .container { background: #222; border: 3px solid #FFD600; border-radius: 20px; max-width: 850px; margin: 40px auto; padding: 34px 36px 48px; box-shadow: 0 2px 10px #000b;}
+    .logo img { width: 80px; margin-bottom: 10px;}
+    h2 { text-align: center; margin-bottom: 20px; font-size: 2.1rem;}
+    .info { border: 2px solid #FFD600; border-radius: 12px; padding: 12px 18px; margin-bottom: 18px; font-size: 1.12rem;}
+    .dados-extra { border: 2px dashed #FFD600; border-radius: 10px; padding: 10px 18px; margin-bottom: 18px; font-size: 1rem;}
+    .ocr-box { border: 2px solid #FFD600; border-radius: 8px; padding: 10px 18px; margin-bottom: 18px; }
+    textarea { width: 98%; min-height: 110px; background: #222; color: #FFD600; border: 1.3px solid #FFD600; font-size: 1rem;}
+    a { color: #FFD600; text-decoration: underline; font-weight: bold;}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo"><img src="{{ url_for('static', filename='bitbat_logo.png') }}" alt="BitBat Logo"></div>
+    <h2>Relatório da Fatura</h2>
+    <div class="info">
+      <b>Arquivo:</b> {{ fatura.nome_arquivo }}<br>
+      <b>Data do upload:</b> {{ fatura.data_upload }}
+    </div>
+    <div class="dados-extra">
+      <b>Dados extraídos automaticamente:</b>
+      <ul>
+        {% if fatura.dados_fatura %}
+          {% for campo, valor in fatura.dados_fatura.items() %}
+            <li><b>{{ campo }}:</b> {{ valor }}</li>
+          {% endfor %}
+        {% else %}
+          <li>Nenhum dado extraído identificado.</li>
+        {% endif %}
+      </ul>
+    </div>
+    <div class="ocr-box">
+      <b>Texto extraído (OCR):</b><br>
+      <textarea readonly>{{ texto }}</textarea>
+    </div>
+    <a href="{{ url_for('dashboard') }}">Voltar ao Dashboard</a>
+  </div>
+</body>
+</html>
+
+
