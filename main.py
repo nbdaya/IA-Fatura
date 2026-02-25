@@ -43,28 +43,42 @@ def allowed_file(filename):
 
 
 # 🔎 Função de OCR OTIMIZADA
+import gc
+
 def extrair_texto_ocr(caminho):
     texto_extraido = ""
 
     try:
         if caminho.lower().endswith(".pdf"):
-            # 🔹 Converte apenas a primeira página
             paginas = convert_from_path(
                 caminho,
-                dpi=150,
+                dpi=120,          # reduz consumo de memória
                 first_page=1,
                 last_page=1
             )
 
             for pagina in paginas:
-                texto_extraido += pytesseract.image_to_string(pagina, lang="por")
-                del pagina  # libera memória
+                texto_extraido += pytesseract.image_to_string(
+                    pagina,
+                    lang="por",
+                    config="--oem 1 --psm 6"
+                )
+                pagina.close()
+                del pagina
+
+            del paginas
+            gc.collect()
 
         else:
-            # Para imagens
             imagem = Image.open(caminho)
-            texto_extraido = pytesseract.image_to_string(imagem, lang="por")
+            texto_extraido = pytesseract.image_to_string(
+                imagem,
+                lang="por",
+                config="--oem 1 --psm 6"
+            )
             imagem.close()
+            del imagem
+            gc.collect()
 
     except Exception as e:
         texto_extraido = f"ERRO NO OCR: {str(e)}"
