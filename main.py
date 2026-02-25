@@ -2,20 +2,18 @@ import os
 import re
 from datetime import datetime
 
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+from flask import (
+    Flask, render_template, request,
+    redirect, url_for, session,
+    flash, send_file
+)
+
 from werkzeug.utils import secure_filename
 import pandas as pd
-
-# 🔥 OCR ATIVADO (versão leve para Render Free)
-from pdf2image import convert_from_path
-import pytesseract
-from PIL import Image
-
-# Caminho do Tesseract dentro do container Docker
-pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"
+import PyPDF2
 
 UPLOAD_FOLDER = 'static/uploads'
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'pdf'}
+ALLOWED_EXTENSIONS = {'pdf'}
 SECRET_KEY = 'supersecret'
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -27,87 +25,96 @@ app.secret_key = SECRET_KEY
 # Banco em memória
 faturas = []
 
-CAMPOS_EXTRAIR = [
-    'CÓDIGO DA INSTALAÇÃO',
-    'NOME DA CONCESSIONÁRIA',
-    'REF:MÊS/ANO',
-    'DEMANDA',
-    'ENERGIA ATIVA HFP',
-    'ENERGIA ATIVA HP',
-    'TOTAL A PAGAR'
-]
 
-
+# =========================
+# UTILIDADES
+# =========================
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
-# 🔎 Função de OCR OTIMIZADA
-import gc
-
-def extrair_texto_ocr(caminho):
-    texto_extraido = ""
-
+def limpar_numero(valor):
+    if not valor:
+        return None
+    valor = valor.replace(".", "").replace(",", ".")
     try:
-        if caminho.lower().endswith(".pdf"):
-            paginas = convert_from_path(
-                caminho,
-                dpi=120,          # reduz consumo de memória
-                first_page=1,
-                last_page=1
-            )
+        return float(valor)
+    except:
+        return None
 
-            for pagina in paginas:
-                texto_extraido += pytesseract.image_to_string(
-                    pagina,
-                    lang="por",
-                    config="--oem 1 --psm 6",
-                    timeout=60
-                )
-                pagina.close()
-                del pagina
 
-            del paginas
-            gc.collect()
-
-        else:
-            imagem = Image.open(caminho)
-            texto_extraido = pytesseract.image_to_string(
-                imagem,
-                lang="por",
-                config="--oem 1 --psm 6",
-                timeout=60
-            )
-            imagem.close()
-            del imagem
-            gc.collect()
-
+# =========================
+# EXTRAÇÃO TEXTO PDF
+# =========================
+def extrair_texto_pdf(caminho):
+    texto = ""
+    try:
+        with open(caminho, "rb") as f:
+            reader = PyPDF2.PdfReader(f)
+            for page in reader.pages:
+                texto += page.extract_text() or ""
     except Exception as e:
-        texto_extraido = f"ERRO NO OCR: {str(e)}"
+        texto = f"ERRO AO LER PDF: {str(e)}"
+    return texto
 
-    return texto_extraido
 
-
-# 🔎 Extração via regex
+# =========================
+# EXTRAÇÃO GRANDEZAS LIGHT
+# =========================
 def extrair_dados_fatura(texto):
     resultado = {}
 
-    codigo_instalacao = re.search(r"\b\d{9}\b", texto)
-    resultado['CÓDIGO DA INSTALAÇÃO'] = codigo_instalacao.group(0) if codigo_instalacao else ""
+    # Mês
+    ref = re.search(r"\b([A-Z]{3}/\d{4})\b", texto)
+    resultado["mes"] = ref.group(1) if ref else ""
 
-    resultado['NOME DA CONCESSIONÁRIA'] = "LIGHT" if "LIGHT" in texto.upper() else "NÃO IDENTIFICADO"
+    # Energia Fora Ponta
+    energia_fp = re.search(
+        r"Energia Ativa kWh HFP.*?kWh\s+([\d\.,]+)",
+        texto,
+        re.DOTALL
+    )
 
-    ref_mes_ano = re.search(r"\b([A-Z]{3}/\d{4})\b", texto)
-    resultado['REF:MÊS/ANO'] = ref_mes_ano.group(1) if ref_mes_ano else ""
+    # Energia Ponta
+    energia_p = re.search(
+        r"Energia Ativa kWh HP\s+kWh\s+([\d\.,]+)",
+        texto
+    )
 
-    resultado['DEMANDA'] = ""
-    resultado['ENERGIA ATIVA HFP'] = ""
-    resultado['ENERGIA ATIVA HP'] = ""
-    resultado['TOTAL A PAGAR'] = ""
+    # Demanda Medida
+    demanda_medida = re.search(
+        r"Demanda Ativa-Kw Único.*?([\d\.,]+)\s*$",
+        texto,
+        re.MULTILINE
+    )
+
+    # Demanda Contratada
+    demanda_contratada = re.search(
+        r"Demanda\s+([\d\.,]+)",
+        texto
+    )
+
+    energia_fp_val = limpar_numero(energia_fp.group(1)) if energia_fp else None
+    energia_p_val = limpar_numero(energia_p.group(1)) if energia_p else None
+    demanda_medida_val = limpar_numero(demanda_medida.group(1)) if demanda_medida else None
+    demanda_contratada_val = limpar_numero(demanda_contratada.group(1)) if demanda_contratada else None
+
+    resultado["energia_fp_kwh"] = energia_fp_val
+    resultado["energia_p_kwh"] = energia_p_val
+    resultado["energia_total_kwh"] = (
+        (energia_fp_val or 0) + (energia_p_val or 0)
+        if energia_fp_val or energia_p_val else None
+    )
+
+    resultado["demanda_medida_kw"] = demanda_medida_val
+    resultado["demanda_contratada_kw"] = demanda_contratada_val
 
     return resultado
 
 
+# =========================
+# ROTAS
+# =========================
 @app.route('/')
 def splash():
     return render_template('splash.html')
@@ -121,13 +128,6 @@ def login():
     return render_template('login.html')
 
 
-@app.route('/cadastro', methods=['GET', 'POST'])
-def cadastro():
-    if request.method == 'POST':
-        return redirect(url_for('login'))
-    return render_template('cadastro.html')
-
-
 @app.route('/dashboard')
 def dashboard():
     return render_template('dashboard.html', faturas=faturas)
@@ -136,14 +136,15 @@ def dashboard():
 @app.route('/upload', methods=['GET', 'POST'])
 def upload():
     if request.method == 'POST':
+
         if 'arquivo' not in request.files:
-            flash('Nenhum arquivo enviado', 'danger')
+            flash('Nenhum arquivo enviado.', 'danger')
             return redirect(request.url)
 
         file = request.files['arquivo']
 
         if file.filename == '':
-            flash('Nenhum arquivo selecionado', 'danger')
+            flash('Nenhum arquivo selecionado.', 'danger')
             return redirect(request.url)
 
         if file and allowed_file(file.filename):
@@ -151,59 +152,21 @@ def upload():
             caminho = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             file.save(caminho)
 
-            # 🔥 OCR EXECUTANDO (leve)
-            texto = extrair_texto_ocr(caminho)
+            texto = extrair_texto_pdf(caminho)
             dados = extrair_dados_fatura(texto)
 
             fatura = {
                 'nome_arquivo': filename,
-                'caminho_arquivo': caminho,
                 'data_upload': datetime.now().strftime("%d/%m/%Y %H:%M"),
-                'texto_extraido': texto,
                 'dados_fatura': dados
             }
 
             faturas.append(fatura)
-            flash('Upload realizado!', 'success')
+
+            flash('Fatura processada com sucesso!', 'success')
             return redirect(url_for('dashboard'))
 
     return render_template('upload.html')
-
-
-@app.route('/relatorio/<nome_arquivo>')
-def relatorio(nome_arquivo):
-    fatura = next((f for f in faturas if f['nome_arquivo'] == nome_arquivo), None)
-
-    if fatura:
-        return render_template(
-            'relatorio.html',
-            fatura=fatura,
-            texto=fatura['texto_extraido'],
-            dados=fatura['dados_fatura']
-        )
-    else:
-        flash('Arquivo não encontrado.', 'danger')
-        return redirect(url_for('dashboard'))
-
-
-@app.route('/remover/<nome_arquivo>')
-def remover(nome_arquivo):
-    global faturas
-    faturas = [f for f in faturas if f['nome_arquivo'] != nome_arquivo]
-
-    try:
-        os.remove(os.path.join(UPLOAD_FOLDER, nome_arquivo))
-    except Exception:
-        pass
-
-    flash('Arquivo removido.', 'success')
-    return redirect(url_for('dashboard'))
-
-
-@app.route('/logout')
-def logout():
-    session.clear()
-    return redirect(url_for('splash'))
 
 
 @app.route('/dashboard_geral')
@@ -217,6 +180,37 @@ def dashboard_geral():
         df_json=df.to_json(orient='records')
     )
 
+
+@app.route('/exportar_excel')
+def exportar_excel():
+
+    dados_list = [f['dados_fatura'] for f in faturas if f.get('dados_fatura')]
+
+    if not dados_list:
+        flash("Nenhum dado disponível para exportação.", "warning")
+        return redirect(url_for('dashboard_geral'))
+
+    df = pd.DataFrame(dados_list)
+
+    caminho_excel = os.path.join(UPLOAD_FOLDER, "relatorio_consolidado.xlsx")
+    df.to_excel(caminho_excel, index=False)
+
+    return send_file(
+        caminho_excel,
+        as_attachment=True,
+        download_name="relatorio_energia.xlsx"
+    )
+
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('splash'))
+
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
