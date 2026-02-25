@@ -61,7 +61,8 @@ def extrair_texto_ocr(caminho):
                 texto_extraido += pytesseract.image_to_string(
                     pagina,
                     lang="por",
-                    config="--oem 1 --psm 6"
+                    config="--oem 1 --psm 6",
+                    timeout=60
                 )
                 pagina.close()
                 del pagina
@@ -75,6 +76,7 @@ def extrair_texto_ocr(caminho):
                 imagem,
                 lang="por",
                 config="--oem 1 --psm 6"
+                timeout=60
             )
             imagem.close()
             del imagem
