@@ -1,22 +1,26 @@
 import os
+import re
+from datetime import datetime
+
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from werkzeug.utils import secure_filename
-from datetime import datetime
-import re
 import pandas as pd
 
-# 🔴 OCR DESATIVADO TEMPORARIAMENTE
-# from PyPDF2 import PdfReader
-# from pdf2image import convert_from_path
-# import pytesseract
-# from PIL import Image
-# import cv2
-# import numpy as np
-# from fuzzywuzzy import process
+# 🔥 OCR ATIVADO
+from PyPDF2 import PdfReader
+from pdf2image import convert_from_path
+import pytesseract
+from PIL import Image
+import cv2
+import numpy as np
+
+# Caminho do Tesseract dentro do container Docker
+pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"
 
 UPLOAD_FOLDER = 'static/uploads'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'pdf'}
 SECRET_KEY = 'supersecret'
+
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 app = Flask(__name__)
@@ -36,30 +40,46 @@ CAMPOS_EXTRAIR = [
     'TOTAL A PAGAR'
 ]
 
+
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
-# 🔴 FUNÇÕES DE OCR DESATIVADAS
-"""
-def preprocess_image(path):
-    ...
+# 🔎 Função de OCR
+def extrair_texto_ocr(caminho):
+    texto_extraido = ""
 
-def extrair_texto_ocr(path):
-    ...
-"""
+    try:
+        if caminho.lower().endswith(".pdf"):
+            paginas = convert_from_path(caminho)
+            for pagina in paginas:
+                texto_extraido += pytesseract.image_to_string(pagina, lang="por")
+        else:
+            imagem = cv2.imread(caminho)
+            texto_extraido = pytesseract.image_to_string(imagem, lang="por")
+    except Exception as e:
+        texto_extraido = f"ERRO NO OCR: {str(e)}"
 
+    return texto_extraido
+
+
+# 🔎 Extração via regex
 def extrair_dados_fatura(texto):
     resultado = {}
+
     codigo_instalacao = re.search(r"\b\d{9}\b", texto)
     resultado['CÓDIGO DA INSTALAÇÃO'] = codigo_instalacao.group(0) if codigo_instalacao else ""
+
     resultado['NOME DA CONCESSIONÁRIA'] = "LIGHT" if "LIGHT" in texto.upper() else "NÃO IDENTIFICADO"
+
     ref_mes_ano = re.search(r"\b([A-Z]{3}/\d{4})\b", texto)
     resultado['REF:MÊS/ANO'] = ref_mes_ano.group(1) if ref_mes_ano else ""
+
     resultado['DEMANDA'] = ""
     resultado['ENERGIA ATIVA HFP'] = ""
     resultado['ENERGIA ATIVA HP'] = ""
     resultado['TOTAL A PAGAR'] = ""
+
     return resultado
 
 
@@ -106,9 +126,9 @@ def upload():
             caminho = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             file.save(caminho)
 
-            # 🔴 OCR DESATIVADO TEMPORARIAMENTE
-            texto = "OCR DESATIVADO"
-            dados = {}
+            # 🔥 OCR EXECUTANDO
+            texto = extrair_texto_ocr(caminho)
+            dados = extrair_dados_fatura(texto)
 
             fatura = {
                 'nome_arquivo': filename,
@@ -129,7 +149,12 @@ def upload():
 def relatorio(nome_arquivo):
     fatura = next((f for f in faturas if f['nome_arquivo'] == nome_arquivo), None)
     if fatura:
-        return render_template('relatorio.html', fatura=fatura, texto=fatura['texto_extraido'], dados=fatura['dados_fatura'])
+        return render_template(
+            'relatorio.html',
+            fatura=fatura,
+            texto=fatura['texto_extraido'],
+            dados=fatura['dados_fatura']
+        )
     else:
         flash('Arquivo não encontrado.', 'danger')
         return redirect(url_for('dashboard'))
@@ -139,10 +164,12 @@ def relatorio(nome_arquivo):
 def remover(nome_arquivo):
     global faturas
     faturas = [f for f in faturas if f['nome_arquivo'] != nome_arquivo]
+
     try:
         os.remove(os.path.join(UPLOAD_FOLDER, nome_arquivo))
     except Exception:
         pass
+
     flash('Arquivo removido.', 'success')
     return redirect(url_for('dashboard'))
 
@@ -157,6 +184,7 @@ def logout():
 def dashboard_geral():
     dados_list = [f['dados_fatura'] for f in faturas if f.get('dados_fatura')]
     df = pd.DataFrame(dados_list) if dados_list else pd.DataFrame()
+
     return render_template(
         'dashboard_geral.html',
         tabela=df.to_html(classes='table table-bordered', index=False),
@@ -167,8 +195,6 @@ def dashboard_geral():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
-
-
 
 
 
