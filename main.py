@@ -6,13 +6,10 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 from werkzeug.utils import secure_filename
 import pandas as pd
 
-# 🔥 OCR ATIVADO
-from PyPDF2 import PdfReader
+# 🔥 OCR ATIVADO (versão leve para Render Free)
 from pdf2image import convert_from_path
 import pytesseract
 from PIL import Image
-import cv2
-import numpy as np
 
 # Caminho do Tesseract dentro do container Docker
 pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"
@@ -45,18 +42,30 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
-# 🔎 Função de OCR
+# 🔎 Função de OCR OTIMIZADA
 def extrair_texto_ocr(caminho):
     texto_extraido = ""
 
     try:
         if caminho.lower().endswith(".pdf"):
-            paginas = convert_from_path(caminho)
+            # 🔹 Converte apenas a primeira página
+            paginas = convert_from_path(
+                caminho,
+                dpi=150,
+                first_page=1,
+                last_page=1
+            )
+
             for pagina in paginas:
                 texto_extraido += pytesseract.image_to_string(pagina, lang="por")
+                del pagina  # libera memória
+
         else:
-            imagem = cv2.imread(caminho)
+            # Para imagens
+            imagem = Image.open(caminho)
             texto_extraido = pytesseract.image_to_string(imagem, lang="por")
+            imagem.close()
+
     except Exception as e:
         texto_extraido = f"ERRO NO OCR: {str(e)}"
 
@@ -126,7 +135,7 @@ def upload():
             caminho = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             file.save(caminho)
 
-            # 🔥 OCR EXECUTANDO
+            # 🔥 OCR EXECUTANDO (leve)
             texto = extrair_texto_ocr(caminho)
             dados = extrair_dados_fatura(texto)
 
@@ -148,6 +157,7 @@ def upload():
 @app.route('/relatorio/<nome_arquivo>')
 def relatorio(nome_arquivo):
     fatura = next((f for f in faturas if f['nome_arquivo'] == nome_arquivo), None)
+
     if fatura:
         return render_template(
             'relatorio.html',
