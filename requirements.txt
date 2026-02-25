@@ -3,7 +3,7 @@ pandas
 PyPDF2
 pdf2image
 pytesseract
-opencv-python
+opencv-python-headless
 pillow
 fuzzywuzzy
 python-Levenshtein
