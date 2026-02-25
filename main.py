@@ -3,7 +3,10 @@ import re
 import gc
 from datetime import datetime
 
-from flask import Flask, render_template, request, redirect, url_for, session, flash, send_file
+from flask import (
+    Flask, render_template, request,
+    redirect, url_for, session, flash, send_file
+)
 from werkzeug.utils import secure_filename
 import pandas as pd
 
@@ -15,6 +18,7 @@ from pdf2image import convert_from_path
 import pytesseract
 from PIL import Image
 
+# Caminho do Tesseract no container
 pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"
 
 UPLOAD_FOLDER = 'static/uploads'
@@ -99,7 +103,7 @@ def extrair_texto(caminho):
 
 
 # =========================
-# REGEX INTELIGENTE
+# EXTRAÇÃO DE DADOS
 # =========================
 
 def extrair_valor(label, texto):
@@ -130,12 +134,34 @@ def extrair_dados_fatura(texto):
 # =========================
 
 @app.route('/')
+def splash():
+    return render_template('splash.html')
+
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        session['user_email'] = request.form['email']
+        return redirect(url_for('dashboard'))
+    return render_template('login.html')
+
+
+@app.route('/cadastro', methods=['GET', 'POST'])
+def cadastro():
+    if request.method == 'POST':
+        flash("Cadastro realizado com sucesso!", "success")
+        return redirect(url_for('login'))
+    return render_template('cadastro.html')
+
+
+@app.route('/dashboard')
 def dashboard():
     return render_template('dashboard.html', faturas=faturas)
 
 
 @app.route('/upload', methods=['GET', 'POST'])
 def upload():
+
     if request.method == 'POST':
 
         file = request.files.get('arquivo')
@@ -201,12 +227,17 @@ def exportar_excel():
     )
 
 
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('splash'))
+
+
 # =========================
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
-
 
 
 
