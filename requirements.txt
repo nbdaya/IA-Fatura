@@ -1,6 +1,8 @@
-flask
+Flask
+gunicorn
 pandas
+PyPDF2
 pdf2image
 pytesseract
 pillow
-gunicorn
+openpyxl
