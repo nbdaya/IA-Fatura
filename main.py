@@ -193,6 +193,36 @@ def upload():
     return render_template('upload.html')
 
 
+@app.route('/relatorio/<nome_arquivo>')
+def relatorio(nome_arquivo):
+    fatura = next((f for f in faturas if f['nome_arquivo'] == nome_arquivo), None)
+
+    if not fatura:
+        flash("Arquivo não encontrado.", "danger")
+        return redirect(url_for('dashboard'))
+
+    return render_template(
+        "relatorio.html",
+        fatura=fatura,
+        dados=fatura['dados_fatura']
+    )
+
+
+@app.route('/remover/<nome_arquivo>')
+def remover(nome_arquivo):
+    global faturas
+
+    faturas = [f for f in faturas if f['nome_arquivo'] != nome_arquivo]
+
+    try:
+        os.remove(os.path.join(UPLOAD_FOLDER, nome_arquivo))
+    except:
+        pass
+
+    flash("Arquivo removido.", "success")
+    return redirect(url_for('dashboard'))
+
+
 @app.route('/dashboard_geral')
 def dashboard_geral():
 
