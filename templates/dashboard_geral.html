@@ -12,9 +12,14 @@
     <h2 class="mb-4">📊 Dashboard Geral de Faturas</h2>
 
     <div class="mb-3">
-        <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">Voltar</a>
-        <a href="{{ url_for('logout') }}" class="btn btn-danger">Sair</a>
-    </div>
+    <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">Voltar</a>
+
+    <a href="{{ url_for('logout') }}" class="btn btn-danger">Sair</a>
+
+    <a href="{{ url_for('exportar_excel') }}" class="btn btn-success">
+        📥 Download Excel
+    </a>
+</div>
 
     {% if tabela %}
         <div class="table-responsive">
@@ -29,4 +34,5 @@
 </div>
 
 </body>
+
 </html>
