@@ -1,7 +1,7 @@
-Flask
-gunicorn
+flask
 pandas
 PyPDF2
+pdfplumber
 pdf2image
 pytesseract
 pillow
