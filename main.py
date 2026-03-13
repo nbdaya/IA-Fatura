@@ -2,6 +2,8 @@ import os
 import re
 import gc
 from datetime import datetime
+from parser.detector import detectar_concessionaria
+from parser.smart_parser import parse_smart
 
 from flask import (
     Flask, render_template, request,
