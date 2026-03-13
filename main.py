@@ -159,25 +159,13 @@ def extrair_valor(label, texto):
 
 def extrair_dados_fatura(texto):
 
-    resultado = {}
+    dados = parse_smart(texto)
 
     concessionaria = detectar_concessionaria(texto)
 
-    resultado["CONCESSIONARIA"] = concessionaria
+    dados["CONCESSIONARIA"] = concessionaria
 
-    codigo = re.search(r"(Instalação|UC|Nº da UC)[^\d]*(\d{6,12})", texto, re.IGNORECASE)
-    resultado["CODIGO_INSTALACAO"] = codigo.group(2) if codigo else ""
-
-    ref = re.search(r"(\d{2}[/\-]\d{4}|[A-Z]{3}/\d{4})", texto)
-    resultado["MES_REFERENCIA"] = ref.group(1) if ref else ""
-
-    resultado["DEMANDA_KW"] = extrair_valor("Demanda", texto)
-    resultado["CONSUMO_HFP_KWH"] = extrair_valor("HFP", texto)
-    resultado["CONSUMO_HP_KWH"] = extrair_valor("HP", texto)
-    resultado["TOTAL_RS"] = extrair_valor("Total", texto)
-
-    return resultado
-
+    return dados
 
 # =========================
 # ROTAS
