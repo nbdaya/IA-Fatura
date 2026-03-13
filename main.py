@@ -14,13 +14,6 @@ import pandas as pd
 # PDF leitura melhor
 import pdfplumber
 
-# OCR fallback
-from pdf2image import convert_from_path
-import pytesseract
-from PIL import Image
-
-pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"
-
 UPLOAD_FOLDER = "static/uploads"
 ALLOWED_EXTENSIONS = {"pdf"}
 SECRET_KEY = "supersecret"
@@ -102,14 +95,7 @@ def extrair_texto_ocr(caminho):
 # =========================
 
 def extrair_texto(caminho):
-
-    texto = extrair_texto_pdf(caminho)
-
-    if len(texto.strip()) < 100:
-        texto = extrair_texto_ocr(caminho)
-
-    return texto
-
+    return extrair_texto_pdf(caminho)
 
 # =========================
 # DETECTAR CONCESSIONÁRIA
