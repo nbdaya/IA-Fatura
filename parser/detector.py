@@ -19,5 +19,7 @@ def detectar_concessionaria(texto):
 
     if "CEMIG" in texto:
         return "CEMIG"
+    if "LIGHT": ["light", "light servicos de eletricidade"] in texto:
+        return "LIGHT"
 
     return "DESCONHECIDA"
