@@ -1,20 +1,17 @@
 import re
 
-def limpar_valor(valor):
 
-    valor = valor.replace(".", "").replace(",", ".")
+def extrair_valor(patterns, texto):
 
-    try:
-        return float(valor)
-    except:
-        return None
+    for pattern in patterns:
+        match = re.search(pattern, texto, re.IGNORECASE | re.DOTALL)
 
-
-def extrair_numero_linha(linha):
-
-    numeros = re.findall(r"\d[\d\.,]*", linha)
-
-    if numeros:
-        return numeros[-1]
+        if match:
+            try:
+                valor = match.group(1)
+                valor = valor.replace(".", "").replace(",", ".")
+                return float(valor)
+            except:
+                continue
 
     return None
