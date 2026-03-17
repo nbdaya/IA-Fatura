@@ -19,7 +19,15 @@
     <div class="logo"><img src="{{ url_for('static', filename='bitbat_logo.png') }}" alt="BitBat Logo"></div>
     <h2>Upload de Fatura</h2>
     <form method="POST" enctype="multipart/form-data">
-     <input type="file" name="faturas" accept="application/pdf" multiple required>
+    <input type="file" name="faturas" accept="application/pdf" multiple onchange="previewArquivos(this)">
+<p id="preview"></p>
+
+<script>
+function previewArquivos(input) {
+    let nomes = Array.from(input.files).map(f => f.name).join("<br>");
+    document.getElementById("preview").innerHTML = nomes || "Nenhum arquivo selecionado";
+}
+</script>
       <button type="submit">Enviar</button>
     </form>
     <a href="{{ url_for('dashboard') }}">Voltar ao Dashboard</a>
