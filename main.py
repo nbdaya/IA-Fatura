@@ -26,6 +26,7 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 app = Flask(__name__)
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
+app.config["MAX_CONTENT_LENGTH"] = 50 * 1024 * 1024  # 50MB
 app.secret_key = SECRET_KEY
 
 faturas = []
@@ -49,13 +50,15 @@ def extrair_texto_pdf(caminho):
 
     try:
         with pdfplumber.open(caminho) as pdf:
-            page = pdf.pages[0]
-            texto = page.extract_text() or ""
+            for page in pdf.pages:
+                conteudo = page.extract_text(x_tolerance=2, y_tolerance=2)
+                if conteudo:
+                    texto += conteudo + "\n"
 
     except Exception as e:
         print("Erro ao extrair texto:", e)
 
-    return texto
+    return texto.lower()
 
 
 def extrair_texto(caminho):
@@ -111,46 +114,71 @@ def dashboard():
     return render_template("dashboard.html", faturas=faturas)
 
 
+# =========================
+# UPLOAD MULTIPLO
+# =========================
+
 @app.route("/upload", methods=["GET", "POST"])
 def upload():
 
     if request.method == "POST":
 
-        file = request.files.get("arquivo")
+        files = request.files.getlist("faturas")
 
-        if not file or file.filename == "":
+        if not files or files[0].filename == "":
             flash("Nenhum arquivo selecionado", "danger")
             return redirect(request.url)
 
-        if file and allowed_file(file.filename):
+        sucessos = 0
+        erros = 0
 
-            filename = secure_filename(file.filename)
-            caminho = os.path.join(app.config["UPLOAD_FOLDER"], filename)
+        for file in files:
 
-            file.save(caminho)
+            if file and allowed_file(file.filename):
 
-            texto = extrair_texto(caminho)
+                try:
+                    filename = secure_filename(file.filename)
 
-            # DEBUG DO PARSER
-            print("\n==============================")
-            print("TEXTO EXTRAÍDO DO PDF")
-            print("==============================")
-            print(texto)
-            print("==============================\n")
+                    # Evita sobrescrever arquivos
+                    timestamp = datetime.now().strftime("%Y%m%d%H%M%S%f")
+                    filename = f"{timestamp}_{filename}"
 
-            dados = extrair_dados_fatura(texto)
+                    caminho = os.path.join(app.config["UPLOAD_FOLDER"], filename)
 
-            fatura = {
-                "nome_arquivo": filename,
-                "data_upload": datetime.now().strftime("%d/%m/%Y %H:%M"),
-                "dados_fatura": dados
-            }
+                    file.save(caminho)
 
-            faturas.append(fatura)
+                    texto = extrair_texto(caminho)
 
-            flash("Upload realizado com sucesso!", "success")
+                    print("\n==============================")
+                    print(f"PROCESSANDO: {filename}")
+                    print("==============================")
 
-            return redirect(url_for("dashboard"))
+                    dados = extrair_dados_fatura(texto)
+
+                    fatura = {
+                        "nome_arquivo": filename,
+                        "data_upload": datetime.now().strftime("%d/%m/%Y %H:%M"),
+                        "dados_fatura": dados
+                    }
+
+                    faturas.append(fatura)
+
+                    sucessos += 1
+
+                except Exception as e:
+                    print(f"Erro ao processar {file.filename}: {e}")
+                    erros += 1
+
+            else:
+                erros += 1
+
+        if sucessos > 0:
+            flash(f"{sucessos} fatura(s) processada(s) com sucesso!", "success")
+
+        if erros > 0:
+            flash(f"{erros} arquivo(s) falharam no processamento.", "warning")
+
+        return redirect(url_for("dashboard"))
 
     return render_template("upload.html")
 
