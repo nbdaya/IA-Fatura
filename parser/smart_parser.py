@@ -1,5 +1,4 @@
-from .utils import limpar_valor, extrair_numero_linha
-
+from parser.utils import limpar_valor, extrair_numero_linha
 
 PALAVRAS_CHAVE = {
 
