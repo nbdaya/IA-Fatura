@@ -37,13 +37,24 @@ def parse_smart(texto):
 
         for campo, palavras in PALAVRAS_CHAVE.items():
 
+            # 🔒 evita sobrescrever se já encontrou o valor
+            if resultado[campo] is not None:
+                continue
+
             for palavra in palavras:
 
                 if palavra in linha_lower:
 
-                    numero = extrair_numero_linha(linha)
+                    try:
+                        # ✅ CORREÇÃO PRINCIPAL AQUI
+                        numero = extrair_numero_linha(linha, palavra)
 
-                    if numero:
-                        resultado[campo] = limpar_valor(numero)
+                        if numero:
+                            resultado[campo] = limpar_valor(numero)
+                            break  # sai do loop de palavras
+
+                    except Exception as e:
+                        print(f"Erro ao extrair '{campo}' na linha: {linha}")
+                        print(f"Detalhe do erro: {e}")
 
     return resultado
