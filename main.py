@@ -11,7 +11,7 @@ import pandas as pd
 import pdfplumber
 
 from parser.detector import detectar_concessionaria
-from parser.smart_parser import parse_smart
+from parser.factory import get_parser  # ✅ NOVO
 
 
 # =========================
@@ -26,7 +26,7 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 app = Flask(__name__)
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
-app.config["MAX_CONTENT_LENGTH"] = 50 * 1024 * 1024  # 50MB
+app.config["MAX_CONTENT_LENGTH"] = 50 * 1024 * 1024
 app.secret_key = SECRET_KEY
 
 faturas = []
@@ -41,7 +41,7 @@ def allowed_file(filename):
 
 
 # =========================
-# EXTRAÇÃO DE TEXTO DO PDF
+# EXTRAÇÃO DE TEXTO
 # =========================
 
 def extrair_texto_pdf(caminho):
@@ -66,15 +66,23 @@ def extrair_texto(caminho):
 
 
 # =========================
-# EXTRAÇÃO DE DADOS
+# EXTRAÇÃO DE DADOS (🔥 CORRIGIDO)
 # =========================
 
 def extrair_dados_fatura(texto):
 
-    dados = parse_smart(texto)
-
+    # 1️⃣ Detecta concessionária
     concessionaria = detectar_concessionaria(texto)
 
+    print(f"Concessionária detectada: {concessionaria}")
+
+    # 2️⃣ Escolhe parser correto
+    parser = get_parser(concessionaria)
+
+    # 3️⃣ Executa parser
+    dados = parser(texto)
+
+    # 4️⃣ Adiciona info
     dados["CONCESSIONARIA"] = concessionaria
 
     return dados
@@ -115,7 +123,7 @@ def dashboard():
 
 
 # =========================
-# UPLOAD MULTIPLO
+# UPLOAD
 # =========================
 
 @app.route("/upload", methods=["GET", "POST"])
@@ -139,7 +147,6 @@ def upload():
                 try:
                     filename = secure_filename(file.filename)
 
-                    # Evita sobrescrever arquivos
                     timestamp = datetime.now().strftime("%Y%m%d%H%M%S%f")
                     filename = f"{timestamp}_{filename}"
 
@@ -153,7 +160,10 @@ def upload():
                     print(f"PROCESSANDO: {filename}")
                     print("==============================")
 
+                    # 🔥 AQUI USA O NOVO FLUXO
                     dados = extrair_dados_fatura(texto)
+
+                    print("DADOS EXTRAÍDOS:", dados)
 
                     fatura = {
                         "nome_arquivo": filename,
@@ -182,6 +192,10 @@ def upload():
 
     return render_template("upload.html")
 
+
+# =========================
+# RESTANTE (igual)
+# =========================
 
 @app.route("/relatorio/<nome_arquivo>")
 def relatorio(nome_arquivo):
@@ -267,7 +281,6 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
 
     app.run(host="0.0.0.0", port=port)
-
 
 
 
