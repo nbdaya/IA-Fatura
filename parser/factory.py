@@ -1,5 +1,5 @@
+from parser.light_parser import parse_light
 from parser.smart_parser import parse_smart
-from parser.light_parser import parse as parse_light
 
 
 def get_parser(concessionaria):
@@ -7,8 +7,5 @@ def get_parser(concessionaria):
     if concessionaria == "LIGHT":
         return parse_light
 
-    # futuros:
-    # if concessionaria == "ENEL":
-    #     return parse_enel
-
+    # fallback genérico
     return parse_smart
