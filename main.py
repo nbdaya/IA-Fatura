@@ -10,8 +10,9 @@ from werkzeug.utils import secure_filename
 import pandas as pd
 import pdfplumber
 
+# ✅ IA DIRETO
+from parser.ai_parser import parse_ai
 from parser.detector import detectar_concessionaria
-from parser.factory import get_parser  # ✅ NOVO
 
 
 # =========================
@@ -66,24 +67,20 @@ def extrair_texto(caminho):
 
 
 # =========================
-# EXTRAÇÃO DE DADOS (🔥 CORRIGIDO)
+# EXTRAÇÃO DE DADOS (🧠 IA DIRETO)
 # =========================
 
 def extrair_dados_fatura(texto):
 
-    # 1️⃣ Detecta concessionária
+    print("🧠 EXTRAINDO COM IA...")
+
+    dados = parse_ai(texto)
+
     concessionaria = detectar_concessionaria(texto)
 
-    print(f"Concessionária detectada: {concessionaria}")
-
-    # 2️⃣ Escolhe parser correto
-    parser = get_parser(concessionaria)
-
-    # 3️⃣ Executa parser
-    dados = parser(texto)
-
-    # 4️⃣ Adiciona info
     dados["CONCESSIONARIA"] = concessionaria
+
+    print("✅ RESULTADO IA:", dados)
 
     return dados
 
@@ -160,10 +157,8 @@ def upload():
                     print(f"PROCESSANDO: {filename}")
                     print("==============================")
 
-                    # 🔥 AQUI USA O NOVO FLUXO
+                    # 🧠 IA DIRETO
                     dados = extrair_dados_fatura(texto)
-
-                    print("DADOS EXTRAÍDOS:", dados)
 
                     fatura = {
                         "nome_arquivo": filename,
@@ -194,7 +189,7 @@ def upload():
 
 
 # =========================
-# RESTANTE (igual)
+# RELATÓRIO
 # =========================
 
 @app.route("/relatorio/<nome_arquivo>")
@@ -213,6 +208,10 @@ def relatorio(nome_arquivo):
     )
 
 
+# =========================
+# REMOVER
+# =========================
+
 @app.route("/remover/<nome_arquivo>")
 def remover(nome_arquivo):
 
@@ -230,6 +229,10 @@ def remover(nome_arquivo):
     return redirect(url_for("dashboard"))
 
 
+# =========================
+# DASHBOARD GERAL
+# =========================
+
 @app.route("/dashboard_geral")
 def dashboard_geral():
 
@@ -243,6 +246,10 @@ def dashboard_geral():
         df_json=df.to_json(orient="records")
     )
 
+
+# =========================
+# EXPORTAR
+# =========================
 
 @app.route("/exportar_excel")
 def exportar_excel():
@@ -266,6 +273,10 @@ def exportar_excel():
     )
 
 
+# =========================
+# LOGOUT
+# =========================
+
 @app.route("/logout")
 def logout():
 
@@ -281,8 +292,3 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
 
     app.run(host="0.0.0.0", port=port)
-
-
-
-
-
