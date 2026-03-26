@@ -2,7 +2,14 @@ from parser.utils import limpar_valor
 import re
 
 
-def extrair_numero(linha):
+def extrair_numero_posicional(linha):
+    numeros = re.findall(r"\d{1,3}(?:\.\d{3})*(?:,\d+)?", linha)
+    if len(numeros) >= 3:
+        return numeros[2]
+    return None
+
+
+def extrair_numero_final(linha):
     numeros = re.findall(r"\d{1,3}(?:\.\d{3})*(?:,\d+)?", linha)
     if numeros:
         return numeros[-1]
@@ -26,27 +33,26 @@ def parse_light(texto):
 
         try:
 
-            # 🔌 DEMANDA
+            # 🔌 DEMANDA (parte de cima da fatura)
             if "demanda ativa" in linha_lower:
-                numero = extrair_numero(linha)
+                numero = extrair_numero_posicional(linha)
                 if numero:
                     resultado["DEMANDA_KW"] = limpar_valor(numero)
 
-            # ⚡ FORA PONTA (HFP OU "fora ponta")
-            elif ("hfp" in linha_lower or "fora ponta" in linha_lower) and "energia ativa" in linha_lower:
-                numero = extrair_numero(linha)
-                if numero:
-                    resultado["CONSUMO_HFP_KWH"] = limpar_valor(numero)
-
-            # ⚡ PONTA (HP)
-            elif (" hp " in linha_lower or "ponta" in linha_lower) and "energia ativa" in linha_lower:
-                numero = extrair_numero(linha)
+            # ⚡ CONSUMO (parte de baixo - medidor)
+            elif "energia ativa-kwh ponta" in linha_lower:
+                numero = extrair_numero_final(linha)
                 if numero:
                     resultado["CONSUMO_HP_KWH"] = limpar_valor(numero)
 
+            elif "energia ativa-kwh fora ponta" in linha_lower:
+                numero = extrair_numero_final(linha)
+                if numero:
+                    resultado["CONSUMO_HFP_KWH"] = limpar_valor(numero)
+
             # 💰 TOTAL
             elif "total a pagar" in linha_lower:
-                numero = extrair_numero(linha)
+                numero = extrair_numero_final(linha)
                 if numero:
                     resultado["TOTAL_RS"] = limpar_valor(numero)
 
