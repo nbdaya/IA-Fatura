@@ -9,13 +9,8 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 def parse_ai(texto):
 
     try:
-        response = client.chat.completions.create(
-            model="gpt-4.1-mini",
-            temperature=0,
-            messages=[
-                {
-                    "role": "user",
-                    "content": f"""
+        # 🧠 PROMPT SEGURO (SEM f-string)
+        prompt = """
 Você é um especialista em contas de energia elétrica brasileiras.
 
 Sua principal tarefa é encontrar o VALOR TOTAL FINAL da fatura.
@@ -64,16 +59,23 @@ Se não encontrar claramente, escolha o MAIOR valor monetário da fatura.
 
 Retorne SOMENTE JSON:
 
-{{
+{
   "DEMANDA_KW": numero,
   "CONSUMO_HP_KWH": numero,
   "CONSUMO_HFP_KWH": numero,
   "TOTAL_RS": numero
-}}
+}
 
-Texto:
-{texto}
+Texto da fatura:
 """
+
+        response = client.chat.completions.create(
+            model="gpt-4.1-mini",
+            temperature=0,
+            messages=[
+                {
+                    "role": "user",
+                    "content": prompt + texto
                 }
             ]
         )
@@ -84,11 +86,13 @@ Texto:
         # 🧠 tentativa direta
         try:
             dados = json.loads(resposta)
-        except:
+
+        except Exception:
             # 🔧 limpeza de resposta
             inicio = resposta.find("{")
             fim = resposta.rfind("}") + 1
             json_limpo = resposta[inicio:fim]
+
             dados = json.loads(json_limpo)
 
         # 🔥 FALLBACK INTELIGENTE PARA TOTAL_RS
