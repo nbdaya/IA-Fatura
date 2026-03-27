@@ -17,44 +17,51 @@ def parse_ai(texto):
                     "content": f"""
 Você é um especialista em contas de energia elétrica brasileiras.
 
-Extraia os seguintes dados com precisão:
+Sua principal tarefa é encontrar o VALOR TOTAL FINAL da fatura.
 
-- DEMANDA_KW → em kW (se estiver em MW, multiplicar por 1000)
-- CONSUMO_HP_KWH → consumo ponta (kWh)
-- CONSUMO_HFP_KWH → consumo fora ponta (kWh)
-- TOTAL_RS → valor total da fatura
+Extraia:
 
-REGRAS IMPORTANTES:
+- DEMANDA_KW (em kW)
+- CONSUMO_HP_KWH (kWh)
+- CONSUMO_HFP_KWH (kWh)
+- TOTAL_RS (valor final da conta)
 
-1. O TOTAL_RS deve ser o valor final da conta, normalmente identificado como:
-   - "Valor a pagar"
-   - "Total a pagar"
-   - "Valor total"
-   - "Total da fatura"
+⚠️ REGRA MAIS IMPORTANTE:
 
-2. IGNORE:
-   - subtotais
-   - impostos isolados
-   - tarifas individuais
-   - valores unitários
+O TOTAL_RS é o valor FINAL A PAGAR.
 
-3. CONVERSÃO DE VALORES:
-   - "R$ 2.336.818,68" → 2336818.68
-   - "2.336.818,68" → 2336818.68
-   - usar ponto como decimal final
+Ele geralmente aparece como:
 
-4. DEMANDA:
-   - se aparecer "9 MW", retornar 9000
-   - se aparecer "9.000 kW", retornar 9000
+- "Valor a pagar"
+- "Total a pagar"
+- "Valor total da fatura"
+- "Total da fatura"
+- "TOTAL R$"
+- "VALOR TOTAL"
 
-5. NUNCA:
-   - retornar 0 se houver valor na fatura
-   - confundir subtotal com total final
+🚫 IGNORE COMPLETAMENTE:
+- impostos
+- ICMS
+- PIS/COFINS
+- subtotais
+- tarifas unitárias
 
-6. PRIORIDADE:
-   - sempre escolher o valor FINAL a pagar
+🔎 ESTRATÉGIA:
+- procure a MAIOR quantia em reais associada a pagamento final
+- normalmente está no final da fatura
 
-Retorne SOMENTE JSON válido (sem texto antes ou depois):
+💰 FORMATAÇÃO:
+- "R$ 2.336.818,68" → 2336818.68
+
+⚡ DEMANDA:
+- 9 MW → 9000
+
+🚫 PROIBIDO:
+- retornar 0 se houver qualquer valor na fatura
+
+Se não encontrar claramente, escolha o MAIOR valor monetário da fatura.
+
+Retorne SOMENTE JSON:
 
 {{
   "DEMANDA_KW": numero,
@@ -63,34 +70,6 @@ Retorne SOMENTE JSON válido (sem texto antes ou depois):
   "TOTAL_RS": numero
 }}
 
-Texto da fatura:
+Texto:
 {texto}
 """
-                }
-            ]
-        )
-
-        resposta = response.choices[0].message.content.strip()
-
-        print("RESPOSTA IA:", resposta)
-
-        # 🧠 tenta converter direto
-        try:
-            return json.loads(resposta)
-        except:
-            # 🔧 tenta limpar texto antes/depois
-            inicio = resposta.find("{")
-            fim = resposta.rfind("}") + 1
-            json_limpo = resposta[inicio:fim]
-
-            return json.loads(json_limpo)
-
-    except Exception as e:
-        print("ERRO IA GERAL:", e)
-
-        return {
-            "DEMANDA_KW": None,
-            "CONSUMO_HP_KWH": None,
-            "CONSUMO_HFP_KWH": None,
-            "TOTAL_RS": None
-        }
