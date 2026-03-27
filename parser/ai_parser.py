@@ -7,31 +7,25 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 
 def parse_ai(texto):
-
     try:
         prompt = """
 Você é um analista especialista em leitura de faturas de energia elétrica no Brasil.
 
-Interprete a fatura como um humano especialista faria.
+Extraia:
 
-EXTRAIA:
-
-- DEMANDA_KW (em kW, converter MW → kW)
+- DEMANDA_KW (em kW)
 - CONSUMO_HP_KWH (ponta)
 - CONSUMO_HFP_KWH (fora ponta)
 - TOTAL_RS (valor final da fatura)
 
 REGRAS:
 
-- TOTAL_RS = valor FINAL A PAGAR
-- Ignore impostos, subtotais e tarifas
-- Se houver vários valores, escolha o maior valor final
+- TOTAL_RS = valor final a pagar
+- Ignorar impostos e subtotais
+- Se houver vários valores, escolher o maior valor relevante
 
 CONVERSÃO:
-- "R$ 2.336.818,68" → 2336818.68
-
-NUNCA:
-- retornar 0 se houver valor
+- "R$ 1.234.567,89" → 1234567.89
 
 Retorne SOMENTE JSON:
 
@@ -59,17 +53,13 @@ FATURA:
         resposta = response.choices[0].message.content.strip()
         print("RESPOSTA IA:", resposta)
 
-        # tentativa de parse
         try:
             dados = json.loads(resposta)
-
         except Exception:
             inicio = resposta.find("{")
             fim = resposta.rfind("}") + 1
-            json_limpo = resposta[inicio:fim]
-            dados = json.loads(json_limpo)
+            dados = json.loads(resposta[inicio:fim])
 
-        # fallback TOTAL
         if not dados.get("TOTAL_RS") or dados["TOTAL_RS"] == 0:
             print("⚠️ fallback TOTAL")
 
@@ -80,14 +70,12 @@ FATURA:
                     float(v.replace('.', '').replace(',', '.'))
                     for v in valores
                 ]
-
                 dados["TOTAL_RS"] = max(valores_convertidos)
 
         return dados
 
     except Exception as e:
         print("ERRO IA:", e)
-
         return {
             "DEMANDA_KW": None,
             "CONSUMO_HP_KWH": None,
