@@ -1,5 +1,6 @@
 import os
 import json
+import re
 from openai import OpenAI
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -47,7 +48,7 @@ Ele geralmente aparece como:
 - tarifas unitárias
 
 🔎 ESTRATÉGIA:
-- procure a MAIOR quantia em reais associada a pagamento final
+- procure a MAIOR quantia em reais associada ao pagamento final
 - normalmente está no final da fatura
 
 💰 FORMATAÇÃO:
@@ -73,3 +74,48 @@ Retorne SOMENTE JSON:
 Texto:
 {texto}
 """
+                }
+            ]
+        )
+
+        resposta = response.choices[0].message.content.strip()
+        print("RESPOSTA IA:", resposta)
+
+        # 🧠 tentativa direta
+        try:
+            dados = json.loads(resposta)
+        except:
+            # 🔧 limpeza de resposta
+            inicio = resposta.find("{")
+            fim = resposta.rfind("}") + 1
+            json_limpo = resposta[inicio:fim]
+            dados = json.loads(json_limpo)
+
+        # 🔥 FALLBACK INTELIGENTE PARA TOTAL_RS
+        if not dados.get("TOTAL_RS") or dados["TOTAL_RS"] == 0:
+            print("⚠️ IA não encontrou TOTAL, aplicando fallback...")
+
+            valores = re.findall(r'\d{1,3}(?:\.\d{3})*,\d{2}', texto)
+
+            if valores:
+                valores_convertidos = [
+                    float(v.replace('.', '').replace(',', '.'))
+                    for v in valores
+                ]
+
+                maior_valor = max(valores_convertidos)
+                print("💰 TOTAL via fallback:", maior_valor)
+
+                dados["TOTAL_RS"] = maior_valor
+
+        return dados
+
+    except Exception as e:
+        print("ERRO IA GERAL:", e)
+
+        return {
+            "DEMANDA_KW": None,
+            "CONSUMO_HP_KWH": None,
+            "CONSUMO_HFP_KWH": None,
+            "TOTAL_RS": None
+        }
