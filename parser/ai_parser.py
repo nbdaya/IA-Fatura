@@ -10,54 +10,78 @@ def parse_ai(texto):
 
     try:
         # 🧠 PROMPT SEGURO (SEM f-string)
-        prompt = """
-Você é um especialista em contas de energia elétrica brasileiras.
+       prompt = """
+Você é um analista especialista em leitura de faturas de energia elétrica no Brasil.
 
-Sua principal tarefa é encontrar o VALOR TOTAL FINAL da fatura.
+Sua tarefa é interpretar o documento como um humano especialista faria.
 
-Extraia:
+⚠️ IMPORTANTE:
+As faturas podem variar de formato, concessionária e layout.
 
-- DEMANDA_KW (em kW)
-- CONSUMO_HP_KWH (kWh)
-- CONSUMO_HFP_KWH (kWh)
-- TOTAL_RS (valor final da conta)
+Você deve identificar os dados pelo CONTEXTO, não apenas por palavras exatas.
 
-⚠️ REGRA MAIS IMPORTANTE:
+========================
+DADOS A EXTRAIR
+========================
 
-O TOTAL_RS é o valor FINAL A PAGAR.
+1. DEMANDA_KW
+- Valor de demanda contratada ou medida
+- Pode estar em kW ou MW (se estiver em MW, converter para kW multiplicando por 1000)
 
-Ele geralmente aparece como:
+2. CONSUMO_HP_KWH
+- Consumo em horário de ponta
 
-- "Valor a pagar"
-- "Total a pagar"
-- "Valor total da fatura"
-- "Total da fatura"
-- "TOTAL R$"
-- "VALOR TOTAL"
+3. CONSUMO_HFP_KWH
+- Consumo fora de ponta
 
-🚫 IGNORE COMPLETAMENTE:
-- impostos
-- ICMS
-- PIS/COFINS
-- subtotais
-- tarifas unitárias
+4. TOTAL_RS
+- Valor final da fatura (valor total a pagar)
 
-🔎 ESTRATÉGIA:
-- procure a MAIOR quantia em reais associada ao pagamento final
-- normalmente está no final da fatura
+========================
+COMO ENCONTRAR OS DADOS
+========================
 
-💰 FORMATAÇÃO:
-- "R$ 2.336.818,68" → 2336818.68
+TOTAL_RS:
+- É o valor final a ser pago
+- Geralmente aparece no final do documento
+- Pode estar como:
+  "valor a pagar", "total", "total da fatura"
+- Ignore impostos e subtotais
+- Se houver vários valores, escolha o mais alto associado ao pagamento final
 
-⚡ DEMANDA:
-- 9 MW → 9000
+CONSUMOS:
+- Procure por tabelas de consumo
+- Diferencie ponta e fora ponta pelo contexto
 
-🚫 PROIBIDO:
-- retornar 0 se houver qualquer valor na fatura
+DEMANDA:
+- Pode aparecer como:
+  "demanda contratada", "demanda medida"
+- Converter MW → kW se necessário
 
-Se não encontrar claramente, escolha o MAIOR valor monetário da fatura.
+========================
+REGRAS DE CONVERSÃO
+========================
 
-Retorne SOMENTE JSON:
+- "R$ 1.234.567,89" → 1234567.89
+- Sempre retornar números (float ou int)
+- Nunca retornar texto
+- Nunca retornar 0 se existir valor
+
+========================
+VALIDAÇÃO (PENSAMENTO)
+========================
+
+Antes de responder, verifique:
+
+- O TOTAL_RS é plausível?
+- Não é imposto ou subtotal?
+- É o maior valor relevante?
+
+========================
+SAÍDA
+========================
+
+Retorne SOMENTE JSON válido:
 
 {
   "DEMANDA_KW": numero,
@@ -66,60 +90,7 @@ Retorne SOMENTE JSON:
   "TOTAL_RS": numero
 }
 
-Texto da fatura:
+========================
+FATURA
+========================
 """
-
-        response = client.chat.completions.create(
-            model="gpt-4.1-mini",
-            temperature=0,
-            messages=[
-                {
-                    "role": "user",
-                    "content": prompt + texto
-                }
-            ]
-        )
-
-        resposta = response.choices[0].message.content.strip()
-        print("RESPOSTA IA:", resposta)
-
-        # 🧠 tentativa direta
-        try:
-            dados = json.loads(resposta)
-
-        except Exception:
-            # 🔧 limpeza de resposta
-            inicio = resposta.find("{")
-            fim = resposta.rfind("}") + 1
-            json_limpo = resposta[inicio:fim]
-
-            dados = json.loads(json_limpo)
-
-        # 🔥 FALLBACK INTELIGENTE PARA TOTAL_RS
-        if not dados.get("TOTAL_RS") or dados["TOTAL_RS"] == 0:
-            print("⚠️ IA não encontrou TOTAL, aplicando fallback...")
-
-            valores = re.findall(r'\d{1,3}(?:\.\d{3})*,\d{2}', texto)
-
-            if valores:
-                valores_convertidos = [
-                    float(v.replace('.', '').replace(',', '.'))
-                    for v in valores
-                ]
-
-                maior_valor = max(valores_convertidos)
-                print("💰 TOTAL via fallback:", maior_valor)
-
-                dados["TOTAL_RS"] = maior_valor
-
-        return dados
-
-    except Exception as e:
-        print("ERRO IA GERAL:", e)
-
-        return {
-            "DEMANDA_KW": None,
-            "CONSUMO_HP_KWH": None,
-            "CONSUMO_HFP_KWH": None,
-            "TOTAL_RS": None
-        }
