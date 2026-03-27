@@ -9,79 +9,31 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 def parse_ai(texto):
 
     try:
-        # 🧠 PROMPT SEGURO (SEM f-string)
-       prompt = """
+        prompt = """
 Você é um analista especialista em leitura de faturas de energia elétrica no Brasil.
 
-Sua tarefa é interpretar o documento como um humano especialista faria.
+Interprete a fatura como um humano especialista faria.
 
-⚠️ IMPORTANTE:
-As faturas podem variar de formato, concessionária e layout.
+EXTRAIA:
 
-Você deve identificar os dados pelo CONTEXTO, não apenas por palavras exatas.
+- DEMANDA_KW (em kW, converter MW → kW)
+- CONSUMO_HP_KWH (ponta)
+- CONSUMO_HFP_KWH (fora ponta)
+- TOTAL_RS (valor final da fatura)
 
-========================
-DADOS A EXTRAIR
-========================
+REGRAS:
 
-1. DEMANDA_KW
-- Valor de demanda contratada ou medida
-- Pode estar em kW ou MW (se estiver em MW, converter para kW multiplicando por 1000)
+- TOTAL_RS = valor FINAL A PAGAR
+- Ignore impostos, subtotais e tarifas
+- Se houver vários valores, escolha o maior valor final
 
-2. CONSUMO_HP_KWH
-- Consumo em horário de ponta
+CONVERSÃO:
+- "R$ 2.336.818,68" → 2336818.68
 
-3. CONSUMO_HFP_KWH
-- Consumo fora de ponta
+NUNCA:
+- retornar 0 se houver valor
 
-4. TOTAL_RS
-- Valor final da fatura (valor total a pagar)
-
-========================
-COMO ENCONTRAR OS DADOS
-========================
-
-TOTAL_RS:
-- É o valor final a ser pago
-- Geralmente aparece no final do documento
-- Pode estar como:
-  "valor a pagar", "total", "total da fatura"
-- Ignore impostos e subtotais
-- Se houver vários valores, escolha o mais alto associado ao pagamento final
-
-CONSUMOS:
-- Procure por tabelas de consumo
-- Diferencie ponta e fora ponta pelo contexto
-
-DEMANDA:
-- Pode aparecer como:
-  "demanda contratada", "demanda medida"
-- Converter MW → kW se necessário
-
-========================
-REGRAS DE CONVERSÃO
-========================
-
-- "R$ 1.234.567,89" → 1234567.89
-- Sempre retornar números (float ou int)
-- Nunca retornar texto
-- Nunca retornar 0 se existir valor
-
-========================
-VALIDAÇÃO (PENSAMENTO)
-========================
-
-Antes de responder, verifique:
-
-- O TOTAL_RS é plausível?
-- Não é imposto ou subtotal?
-- É o maior valor relevante?
-
-========================
-SAÍDA
-========================
-
-Retorne SOMENTE JSON válido:
+Retorne SOMENTE JSON:
 
 {
   "DEMANDA_KW": numero,
@@ -90,7 +42,55 @@ Retorne SOMENTE JSON válido:
   "TOTAL_RS": numero
 }
 
-========================
-FATURA
-========================
+FATURA:
 """
+
+        response = client.chat.completions.create(
+            model="gpt-4.1-mini",
+            temperature=0,
+            messages=[
+                {
+                    "role": "user",
+                    "content": prompt + texto
+                }
+            ]
+        )
+
+        resposta = response.choices[0].message.content.strip()
+        print("RESPOSTA IA:", resposta)
+
+        # tentativa de parse
+        try:
+            dados = json.loads(resposta)
+
+        except Exception:
+            inicio = resposta.find("{")
+            fim = resposta.rfind("}") + 1
+            json_limpo = resposta[inicio:fim]
+            dados = json.loads(json_limpo)
+
+        # fallback TOTAL
+        if not dados.get("TOTAL_RS") or dados["TOTAL_RS"] == 0:
+            print("⚠️ fallback TOTAL")
+
+            valores = re.findall(r'\d{1,3}(?:\.\d{3})*,\d{2}', texto)
+
+            if valores:
+                valores_convertidos = [
+                    float(v.replace('.', '').replace(',', '.'))
+                    for v in valores
+                ]
+
+                dados["TOTAL_RS"] = max(valores_convertidos)
+
+        return dados
+
+    except Exception as e:
+        print("ERRO IA:", e)
+
+        return {
+            "DEMANDA_KW": None,
+            "CONSUMO_HP_KWH": None,
+            "CONSUMO_HFP_KWH": None,
+            "TOTAL_RS": None
+        }
