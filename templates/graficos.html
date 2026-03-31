@@ -100,33 +100,40 @@
 </div>
 
 <script>
-const consumo = {{ consumo_total }};
-const despesa = {{ despesa_total }};
+const meses = {{ meses | tojson }};
+const consumo = {{ consumo_mensal | tojson }};
+const despesa = {{ despesa_mensal | tojson }};
 
-// Consumo
+// 🔥 GRÁFICO DE CONSUMO (linha mensal)
 new Chart(document.getElementById('graficoConsumo'), {
-    type: 'bar',
+    type: 'line',
     data: {
-        labels: ['Consumo Total (kWh)'],
+        labels: meses,
         datasets: [{
-            label: 'Consumo',
-            data: [consumo],
+            label: 'Consumo (kWh)',
+            data: consumo,
+            borderColor: '#00c897',
+            backgroundColor: 'rgba(0,200,151,0.2)',
+            tension: 0.3
         }]
     }
 });
 
-// Despesa
+// 🔥 GRÁFICO DE DESPESA (linha mensal)
 new Chart(document.getElementById('graficoDespesa'), {
-    type: 'bar',
+    type: 'line',
     data: {
-        labels: ['Despesa Total (R$)'],
+        labels: meses,
         datasets: [{
-            label: 'Despesa',
-            data: [despesa],
+            label: 'Despesa (R$)',
+            data: despesa,
+            borderColor: '#3aa0ff',
+            backgroundColor: 'rgba(58,160,255,0.2)',
+            tension: 0.3
         }]
     }
 });
+  
 </script>
-
 </body>
 </html>
