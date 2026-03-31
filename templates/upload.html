@@ -2,35 +2,156 @@
 <html lang="pt-br">
 <head>
   <meta charset="UTF-8">
-  <title>Upload de Fatura</title>
+
+  <!-- RESPONSIVO -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>EN-AI | Upload de Faturas</title>
+
   <style>
-    body { background: #161616; color: #FFD600; font-family: Arial, sans-serif;}
-    .container { background: #222; border: 2.5px solid #FFD600; border-radius: 20px; max-width: 480px; margin: 48px auto; padding: 32px 32px 40px;}
-    .logo img { width: 80px; margin-bottom: 16px;}
-    h2 { text-align: center; margin-bottom: 16px;}
-    label, input[type=file] { display: block; margin: 8px 0; color: #FFD600;}
-    button { background: #FFD600; color: #222; border: none; padding: 8px 34px; border-radius: 8px; font-weight: bold; margin-top: 16px;}
-    a { color: #FFD600; text-decoration: underline; font-weight: bold; margin-top: 18px; display: block; text-align: center;}
-    .flash { margin-top: 8px; padding: 7px; background: #161616; color: #FFD600; border-radius: 5px; border: 1px solid #FFD600; text-align: center;}
+    body {
+      background: #0a192f;
+      color: #ffffff;
+      font-family: Arial, sans-serif;
+      margin: 0;
+
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    .container {
+      background: #112240;
+      border-radius: 20px;
+      max-width: 500px;
+      width: 90%;
+      padding: 35px 30px 40px;
+      box-shadow: 0 8px 25px rgba(0,0,0,0.6);
+      text-align: center;
+    }
+
+    .logo {
+      margin-bottom: 15px;
+    }
+
+    .logo img {
+      width: 100px;
+    }
+
+    h2 {
+      margin-bottom: 10px;
+    }
+
+    .subtitle {
+      font-size: 0.9rem;
+      opacity: 0.7;
+      margin-bottom: 25px;
+    }
+
+    /* ÁREA DE UPLOAD */
+    .upload-box {
+      border: 2px dashed #00c897;
+      border-radius: 12px;
+      padding: 25px;
+      cursor: pointer;
+      transition: 0.3s;
+      margin-bottom: 15px;
+    }
+
+    .upload-box:hover {
+      background: rgba(0,200,151,0.1);
+    }
+
+    input[type=file] {
+      display: none;
+    }
+
+    .upload-text {
+      font-size: 0.95rem;
+      opacity: 0.8;
+    }
+
+    #preview {
+      margin-top: 10px;
+      font-size: 0.85rem;
+      opacity: 0.8;
+    }
+
+    button {
+      background: #00c897;
+      color: #0a192f;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: bold;
+      padding: 12px 30px;
+      margin-top: 15px;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    button:hover {
+      background: #00e6a8;
+      transform: scale(1.05);
+    }
+
+    a {
+      display: block;
+      margin-top: 18px;
+      color: #00c897;
+      text-decoration: none;
+      font-weight: bold;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    .flash {
+      margin-top: 12px;
+      padding: 10px;
+      background: #d9534f;
+      color: #fff;
+      border-radius: 6px;
+      font-weight: bold;
+    }
+
   </style>
 </head>
-<body>
-  <div class="container">
-    <div class="logo"><img src="{{ url_for('static', filename='bitbat_logo.png') }}" alt="BitBat Logo"></div>
-    <h2>Upload de Fatura</h2>
-    <form method="POST" enctype="multipart/form-data">
-    <input type="file" name="faturas" accept="application/pdf" multiple onchange="previewArquivos(this)">
-<p id="preview"></p>
 
-<script>
-function previewArquivos(input) {
-    let nomes = Array.from(input.files).map(f => f.name).join("<br>");
-    document.getElementById("preview").innerHTML = nomes || "Nenhum arquivo selecionado";
-}
-</script>
-      <button type="submit">Enviar</button>
+<body>
+
+  <div class="container">
+
+    <!-- LOGO -->
+    <div class="logo">
+      <img src="{{ url_for('static', filename='enai_logo.png') }}">
+    </div>
+
+    <h2>Upload de Faturas ⚡</h2>
+    <div class="subtitle">
+      Envie suas faturas em PDF para análise automática com IA
+    </div>
+
+    <form method="POST" enctype="multipart/form-data">
+
+      <!-- ÁREA CLICÁVEL -->
+      <label class="upload-box">
+        <span class="upload-text">
+          Clique ou arraste arquivos PDF aqui
+        </span>
+        <input type="file" name="faturas" accept="application/pdf" multiple onchange="previewArquivos(this)">
+      </label>
+
+      <!-- PREVIEW -->
+      <p id="preview">Nenhum arquivo selecionado</p>
+
+      <button type="submit">Processar com IA ⚡</button>
     </form>
+
     <a href="{{ url_for('dashboard') }}">Voltar ao Dashboard</a>
+
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
         {% for category, message in messages %}
@@ -38,6 +159,15 @@ function previewArquivos(input) {
         {% endfor %}
       {% endif %}
     {% endwith %}
+
   </div>
+
+  <script>
+    function previewArquivos(input) {
+        let nomes = Array.from(input.files).map(f => f.name).join("<br>");
+        document.getElementById("preview").innerHTML = nomes || "Nenhum arquivo selecionado";
+    }
+  </script>
+
 </body>
 </html>
