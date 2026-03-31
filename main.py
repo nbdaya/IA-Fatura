@@ -230,7 +230,6 @@ def graficos():
 
     dados_list = [f for f in faturas if f.get("dados_fatura")]
 
-    # 🔥 CORREÇÃO DO ERRO
     if not dados_list:
         return render_template(
             "graficos.html",
@@ -248,26 +247,39 @@ def graficos():
     for f in dados_list:
         dados = f["dados_fatura"]
 
-        # 📅 MÊS
+        # 📅 Mês
         meses.append(f.get("data_upload", ""))
 
-        # ⚡ CONSUMO
-        hp = float(dados.get("CONSUMO_HP_KWH", 0) or 0)
-        hfp = float(dados.get("CONSUMO_HFP_KWH", 0) or 0)
-        consumo_mensal.append(hp + hfp)
+        # ⚡ Consumo = ponta + fora ponta
+        try:
+            hp = float(dados.get("CONSUMO_HP_KWH", 0) or 0)
+            hfp = float(dados.get("CONSUMO_HFP_KWH", 0) or 0)
+            consumo_total = hp + hfp
+        except:
+            consumo_total = 0
 
-        # 💰 DESPESA
-        valor = limpar_valor_monetario(dados.get("VALOR_TOTAL", 0))
+        consumo_mensal.append(consumo_total)
+
+        # 💰 DESPESA (🔥 CORREÇÃO PRINCIPAL)
+        valor_raw = (
+            dados.get("TOTAL_RS")
+            or dados.get("VALOR_TOTAL")
+            or dados.get("TOTAL")
+            or 0
+        )
+
+        valor = limpar_valor_monetario(valor_raw)
+
         despesa_mensal.append(valor)
 
     despesa_total = sum(despesa_mensal)
 
     return render_template(
         "graficos.html",
-        meses=list(meses),
-        consumo_mensal=list(consumo_mensal),
-        despesa_mensal=list(despesa_mensal),
-        despesa_total=float(despesa_total),
+        meses=meses,
+        consumo_mensal=consumo_mensal,
+        despesa_mensal=despesa_mensal,
+        despesa_total=despesa_total,
         vazio=False
     )
 
