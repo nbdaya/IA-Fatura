@@ -42,28 +42,16 @@ def allowed_file(filename):
 
 def limpar_valor_monetario(valor):
     try:
-        valor = str(valor).replace("R$", "").replace(".", "").replace(",", ".").strip()
+        if not valor:
+            return 0
+
+        valor = str(valor)
+        valor = valor.replace("R$", "").replace(" ", "")
+        valor = valor.replace(".", "").replace(",", ".")
+
         return float(valor)
     except:
         return 0
-
-
-def formatar_moeda(valor):
-    try:
-        return f"R$ {float(valor):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-    except:
-        return valor
-
-
-def tratar_dados(dados):
-    if not isinstance(dados, dict):
-        return {}
-
-    for chave, valor in dados.items():
-        if any(p in chave.lower() for p in ["valor", "custo", "total"]):
-            dados[chave] = formatar_moeda(valor)
-
-    return dados
 
 
 # =========================
@@ -98,8 +86,7 @@ def extrair_dados_fatura(texto):
     dados = parse_ai(texto)
     dados["CONCESSIONARIA"] = detectar_concessionaria(texto)
 
-    dados = tratar_dados(dados)
-
+    # 🔥 IMPORTANTE: NÃO FORMATAR AQUI
     return dados
 
 
@@ -169,7 +156,7 @@ def upload():
 
                     faturas.append({
                         "nome_arquivo": filename,
-                        "data_upload": datetime.now().strftime("%d/%m/%Y %H:%M"),
+                        "data_upload": datetime.now().strftime("%Y-%m"),
                         "dados_fatura": dados,
                         "texto_ocr": texto[:2000]
                     })
@@ -236,34 +223,43 @@ def dashboard_geral():
 
 
 # =========================
-# GRÁFICOS
+# GRÁFICOS (🔥 CORRIGIDO)
 # =========================
 
 @app.route("/graficos")
 def graficos():
 
-    dados_list = [f["dados_fatura"] for f in faturas if f.get("dados_fatura")]
+    dados_list = [f for f in faturas if f.get("dados_fatura")]
 
     if not dados_list:
         return render_template("graficos.html", vazio=True)
 
-    df = pd.DataFrame(dados_list)
+    meses = []
+    consumo_mensal = []
+    despesa_mensal = []
 
-    consumo_total = 0
-    despesa_total = 0
+    for f in dados_list:
+        dados = f["dados_fatura"]
 
-    if "CONSUMO_HP_KWH" in df.columns:
-        consumo_total += pd.to_numeric(df["CONSUMO_HP_KWH"], errors="coerce").fillna(0).sum()
+        # 📅 MÊS
+        meses.append(f["data_upload"])
 
-    if "CONSUMO_HFP_KWH" in df.columns:
-        consumo_total += pd.to_numeric(df["CONSUMO_HFP_KWH"], errors="coerce").fillna(0).sum()
+        # ⚡ CONSUMO
+        hp = float(dados.get("CONSUMO_HP_KWH", 0) or 0)
+        hfp = float(dados.get("CONSUMO_HFP_KWH", 0) or 0)
+        consumo_mensal.append(hp + hfp)
 
-    if "VALOR_TOTAL" in df.columns:
-        despesa_total = df["VALOR_TOTAL"].apply(limpar_valor_monetario).sum()
+        # 💰 DESPESA
+        valor = limpar_valor_monetario(dados.get("VALOR_TOTAL", 0))
+        despesa_mensal.append(valor)
+
+    despesa_total = sum(despesa_mensal)
 
     return render_template(
         "graficos.html",
-        consumo_total=round(consumo_total, 2),
+        meses=meses,
+        consumo_mensal=consumo_mensal,
+        despesa_mensal=despesa_mensal,
         despesa_total=round(despesa_total, 2),
         vazio=False
     )
@@ -305,5 +301,3 @@ def logout():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
-
-   
