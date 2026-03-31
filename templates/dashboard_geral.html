@@ -33,12 +33,14 @@
             display: flex;
             justify-content: space-between;
             flex-wrap: wrap;
+            gap: 10px;
             margin-bottom: 20px;
         }
 
         .btn-custom {
             border-radius: 8px;
             font-weight: bold;
+            padding: 8px 14px;
         }
 
         .btn-voltar {
@@ -48,11 +50,21 @@
 
         .btn-sair {
             background: #d9534f;
+            color: white;
         }
 
         .btn-excel {
             background: #00c897;
             color: #0a192f;
+        }
+
+        .btn-grafico {
+            background: #3aa0ff;
+            color: white;
+        }
+
+        .btn-grafico:hover {
+            background: #5bb3ff;
         }
 
         table {
@@ -85,7 +97,7 @@
         }
 
         .logo img {
-            width: 100px;
+            width: 110px;
         }
 
     </style>
@@ -104,14 +116,20 @@
 
     <div class="top-bar">
 
+        <!-- ESQUERDA -->
         <div>
             <a href="{{ url_for('dashboard') }}" class="btn btn-custom btn-voltar">Voltar</a>
             <a href="{{ url_for('logout') }}" class="btn btn-custom btn-sair">Sair</a>
         </div>
 
+        <!-- DIREITA -->
         <div>
+            <a href="{{ url_for('graficos') }}" class="btn btn-custom btn-grafico">
+                📊 Ver Gráficos
+            </a>
+
             <a href="{{ url_for('exportar_excel') }}" class="btn btn-custom btn-excel">
-                📥 Exportar Excel
+                📥 Excel
             </a>
         </div>
 
