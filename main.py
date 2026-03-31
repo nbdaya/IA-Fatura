@@ -86,7 +86,6 @@ def extrair_dados_fatura(texto):
     dados = parse_ai(texto)
     dados["CONCESSIONARIA"] = detectar_concessionaria(texto)
 
-    # 🔥 IMPORTANTE: NÃO FORMATAR AQUI
     return dados
 
 
@@ -223,7 +222,7 @@ def dashboard_geral():
 
 
 # =========================
-# GRÁFICOS (🔥 CORRIGIDO)
+# GRÁFICOS (🔥 CORRIGIDO DEFINITIVO)
 # =========================
 
 @app.route("/graficos")
@@ -231,8 +230,16 @@ def graficos():
 
     dados_list = [f for f in faturas if f.get("dados_fatura")]
 
+    # 🔥 CORREÇÃO DO ERRO
     if not dados_list:
-        return render_template("graficos.html", vazio=True)
+        return render_template(
+            "graficos.html",
+            meses=[],
+            consumo_mensal=[],
+            despesa_mensal=[],
+            despesa_total=0,
+            vazio=True
+        )
 
     meses = []
     consumo_mensal = []
@@ -242,7 +249,7 @@ def graficos():
         dados = f["dados_fatura"]
 
         # 📅 MÊS
-        meses.append(f["data_upload"])
+        meses.append(f.get("data_upload", ""))
 
         # ⚡ CONSUMO
         hp = float(dados.get("CONSUMO_HP_KWH", 0) or 0)
@@ -257,10 +264,10 @@ def graficos():
 
     return render_template(
         "graficos.html",
-        meses=meses,
-        consumo_mensal=consumo_mensal,
-        despesa_mensal=despesa_mensal,
-        despesa_total=round(despesa_total, 2),
+        meses=list(meses),
+        consumo_mensal=list(consumo_mensal),
+        despesa_mensal=list(despesa_mensal),
+        despesa_total=float(despesa_total),
         vazio=False
     )
 
