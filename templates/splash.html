@@ -33,16 +33,28 @@
 
     .left-content {
       max-width: 450px;
+      text-align: left;
     }
 
+    /* LOGO ESQUERDA */
+    .logo-left {
+      margin-bottom: 20px;
+    }
+
+    .logo-left img {
+      width: 180px;
+    }
+
+    /* TEXTO */
     .left h1 {
-      font-size: 3rem;
-      margin-bottom: 10px;
+      font-size: 2.6rem;
+      margin-bottom: 5px;
     }
 
-    .left p {
+    .sub {
       font-size: 1.2rem;
-      opacity: 0.8;
+      opacity: 0.85;
+      text-align: center;
     }
 
     /* LADO DIREITO */
@@ -65,14 +77,16 @@
       box-shadow: 0 10px 30px rgba(0,0,0,0.6);
     }
 
-    /* LOGO */
+    /* LOGO DIREITA */
     .logo img {
       width: 200px;
       margin-bottom: 20px;
     }
 
-    h2 {
+    /* TÍTULO DIREITA */
+    .card h2 {
       margin-bottom: 20px;
+      color: white; /* 🔥 corrigido */
     }
 
     /* BOTÕES */
@@ -132,6 +146,10 @@
         font-size: 2rem;
       }
 
+      .logo-left img {
+        width: 140px;
+      }
+
       .logo img {
         width: 140px;
       }
@@ -147,10 +165,17 @@
   <!-- LADO ESQUERDO -->
   <div class="left">
     <div class="left-content">
-      <h1>EN-AI ⚡</h1>
-      <p>
-        Inteligência Energética para o Programa Energia Naval
+
+      <div class="logo-left">
+        <img src="{{ url_for('static', filename='enai_logo.png') }}">
+      </div>
+
+      <h1>Programa Energia Naval</h1>
+
+      <p class="sub">
+        Inteligência Energética
       </p>
+
     </div>
   </div>
 
