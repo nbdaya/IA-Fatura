@@ -10,7 +10,6 @@ from werkzeug.utils import secure_filename
 import pandas as pd
 import pdfplumber
 
-# ✅ IA DIRETO
 from parser.ai_parser import parse_ai
 from parser.detector import detectar_concessionaria
 
@@ -41,12 +40,31 @@ def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
+def formatar_moeda(valor):
+    try:
+        return f"R$ {float(valor):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    except:
+        return valor
+
+
+def tratar_dados(dados):
+    if not isinstance(dados, dict):
+        return {}
+
+    for chave, valor in dados.items():
+
+        # Detecta valores monetários automaticamente
+        if any(palavra in chave.lower() for palavra in ["valor", "custo", "total"]):
+            dados[chave] = formatar_moeda(valor)
+
+    return dados
+
+
 # =========================
 # EXTRAÇÃO DE TEXTO
 # =========================
 
 def extrair_texto_pdf(caminho):
-
     texto = ""
 
     try:
@@ -67,7 +85,7 @@ def extrair_texto(caminho):
 
 
 # =========================
-# EXTRAÇÃO DE DADOS (🧠 IA DIRETO)
+# EXTRAÇÃO DE DADOS
 # =========================
 
 def extrair_dados_fatura(texto):
@@ -77,8 +95,10 @@ def extrair_dados_fatura(texto):
     dados = parse_ai(texto)
 
     concessionaria = detectar_concessionaria(texto)
-
     dados["CONCESSIONARIA"] = concessionaria
+
+    # 💰 TRATAMENTO AQUI
+    dados = tratar_dados(dados)
 
     print("✅ RESULTADO IA:", dados)
 
@@ -148,22 +168,19 @@ def upload():
                     filename = f"{timestamp}_{filename}"
 
                     caminho = os.path.join(app.config["UPLOAD_FOLDER"], filename)
-
                     file.save(caminho)
 
                     texto = extrair_texto(caminho)
 
-                    print("\n==============================")
-                    print(f"PROCESSANDO: {filename}")
-                    print("==============================")
+                    print(f"\n🔎 PROCESSANDO: {filename}")
 
-                    # 🧠 IA DIRETO
                     dados = extrair_dados_fatura(texto)
 
                     fatura = {
                         "nome_arquivo": filename,
                         "data_upload": datetime.now().strftime("%d/%m/%Y %H:%M"),
-                        "dados_fatura": dados
+                        "dados_fatura": dados,
+                        "texto_ocr": texto[:2000]  # limita tamanho
                     }
 
                     faturas.append(fatura)
@@ -204,7 +221,7 @@ def relatorio(nome_arquivo):
     return render_template(
         "relatorio.html",
         fatura=fatura,
-        dados=fatura["dados_fatura"]
+        texto=fatura.get("texto_ocr", "")
     )
 
 
@@ -242,7 +259,7 @@ def dashboard_geral():
 
     return render_template(
         "dashboard_geral.html",
-        tabela=df.to_html(classes="table table-bordered", index=False),
+        tabela=df.to_html(classes="table table-hover", index=False),
         df_json=df.to_json(orient="records")
     )
 
@@ -263,7 +280,6 @@ def exportar_excel():
     df = pd.DataFrame(dados_list)
 
     caminho_excel = os.path.join(UPLOAD_FOLDER, "relatorio_consolidado.xlsx")
-
     df.to_excel(caminho_excel, index=False)
 
     return send_file(
@@ -279,9 +295,7 @@ def exportar_excel():
 
 @app.route("/logout")
 def logout():
-
     session.clear()
-
     return redirect(url_for("splash"))
 
 
@@ -290,5 +304,6 @@ def logout():
 if __name__ == "__main__":
 
     port = int(os.environ.get("PORT", 10000))
-
     app.run(host="0.0.0.0", port=port)
+
+   
