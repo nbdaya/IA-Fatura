@@ -102,26 +102,37 @@
 
 <body>
 
-  <div class="container">
+<div class="main">
 
-    <!-- LOGO -->
-    <div class="logo">
-      <img src="{{ url_for('static', filename='enai_logo.png') }}">
+  <!-- LADO ESQUERDO -->
+  <div class="left">
+    <div class="left-content">
+      <h1>EN-AI ⚡</h1>
+      <p>
+        Inteligência Energética para o Programa Energia Naval
+      </p>
     </div>
-
-    <!-- TÍTULO -->
-    <h1>EN-AI ⚡</h1>
-    <div class="subtitle">
-      Inteligência Energética para o Programa Energia Naval
-    </div>
-
-    <!-- BOTÕES -->
-    <div class="links">
-      <a href="{{ url_for('login') }}" class="btn">Entrar</a>
-      <a href="{{ url_for('cadastro') }}" class="btn btn-outline">Cadastrar</a>
-    </div>
-
   </div>
+
+  <!-- LADO DIREITO -->
+  <div class="right">
+    <div class="card">
+
+      <div class="logo">
+        <img src="{{ url_for('static', filename='enai_logo.png') }}">
+      </div>
+
+      <h2>Bem-vindo</h2>
+
+      <div class="buttons">
+        <a href="{{ url_for('login') }}" class="btn">Entrar</a>
+        <a href="{{ url_for('cadastro') }}" class="btn-outline">Cadastrar</a>
+      </div>
+
+    </div>
+  </div>
+
+</div>
 
 </body>
 </html>
